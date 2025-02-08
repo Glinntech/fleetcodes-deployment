@@ -3,7 +3,7 @@ import * as aws from "@pulumi/aws";
 import {SubnetType} from "@pulumi/awsx/ec2";
 import {NatGatewayStrategy} from "@pulumi/awsx/types/enums/ec2";
 
-export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt");
+export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {name: "fleet-mgmt"});
 
 // Create a VPC in a specific availability zone to minimize data transfer costs
 export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
@@ -14,6 +14,14 @@ export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
     }
 });
 
+// const ecsOptimizedAl2AmiId = aws.ec2.getAmi({
+//     filters: [
+//         { name: "name", values: ["amzn2-ami-ecs-hvm-*-x86_64-ebs"] },
+//         { name: "owner-id", values: ["137112412989"] },
+//     ],
+//     mostRecent: true,
+// }).then(ami => ami.id);
+// arn:aws:imagebuilder:us-east-2:aws:image/amazon-linux-2-ecs-optimized-kernel-5-x86/2025.1.29
 
 // Create a security group, web allow security group
 export const securityGroup = new aws.ec2.SecurityGroup("fleet-mgmt-web-sg", {
@@ -24,7 +32,25 @@ export const securityGroup = new aws.ec2.SecurityGroup("fleet-mgmt-web-sg", {
         fromPort: 8080,
         toPort: 8080,
         cidrBlocks: ["0.0.0.0/0"],
-    }],
+    },
+        {
+            protocol: "tcp",
+            fromPort: 22,
+            toPort: 22,
+            prefixListIds: ["pl-03915406641cb1f53m"]
+        },
+        {
+            protocol: "tcp",
+            fromPort: 80,
+            toPort: 80,
+            cidrBlocks: ["0.0.0.0/0"],
+        },
+        {
+            protocol: "tcp",
+            fromPort: 413,
+            toPort: 413,
+            cidrBlocks: ["0.0.0.0/0"],
+        }],
     egress: [{
         protocol: "-1",
         fromPort: 0,
@@ -34,23 +60,49 @@ export const securityGroup = new aws.ec2.SecurityGroup("fleet-mgmt-web-sg", {
 });
 
 
-// Define the task execution role
-export const executionRole = new aws.iam.Role("ecs-execution-role", {
-    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ecs-tasks.amazonaws.com"}),
+// Define the IAM role
+const instanceRole = new aws.iam.Role("ecsInstanceRole", {
+    name: "ecsInstanceRole",
+    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ec2.amazonaws.com"}),
 });
 
-// Attach the necessary policies to the execution role
-new aws.iam.RolePolicyAttachment("ecs-execution-policy", {
-    role: executionRole.name,
-    policyArn: aws.iam.ManagedPolicy.AmazonECSTaskExecutionRolePolicy,
+// Attach the necessary policies to the role
+new aws.iam.RolePolicyAttachment("instanceRolePolicyAttachment", {
+    role: instanceRole.name,
+    policyArn: aws.iam.ManagedPolicy.AmazonEC2ContainerServiceforEC2Role,
 });
 
+// Create the instance profile
+const instanceProfile = new aws.iam.InstanceProfile("instanceProfile", {
+    name: "instanceProfile",
+    role: instanceRole.name,
+});
+const AMI_ID = "ami-0db23f5989fe7eb5e"; //AMAZON LINUX 2023 AMI
+
+// User data script to install EC2 Instance Connect
+const userData = `#!/bin/bash
+yum update -y
+yum install -y ec2-instance-connect
+systemctl enable ec2-instance-connect
+systemctl start ec2-instance-connect
+`;
 
 // Define the launch configuration
 const launchConfiguration = new aws.ec2.LaunchTemplate("fleet-mgmt-launch-config", {
-    imageId: "ami-0c55b159cbfafe1f0", // Replace with your desired AMI ID
-    instanceType: "t3.micro",
+    imageId: AMI_ID, // Replace with your desired AMI ID
+    instanceType: "t2.micro",
     vpcSecurityGroupIds: [securityGroup.id], // Replace with your security group ID
+    iamInstanceProfile: {
+        arn: instanceProfile.arn
+    },
+    tagSpecifications: [{
+        resourceType: "instance",
+        tags: {
+            Name: "ecs-instance",
+        },
+    }],
+    userData: Buffer.from(userData).toString('base64'),
+    updateDefaultVersion: true,
 });
 
 // Create the Auto Scaling Group with mixed instances policy
@@ -60,21 +112,24 @@ const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
         launchTemplate: {
             launchTemplateSpecification: {
                 launchTemplateId: launchConfiguration.id,
-                version: "$Latest",
+                version: launchConfiguration.latestVersion.apply(o => o.toString()),
             },
             overrides: [
-                {instanceType: "t3.micro"},
+                {instanceType: "t2.micro"},
             ],
         },
         instancesDistribution: {
             onDemandBaseCapacity: 1,
-            onDemandPercentageAboveBaseCapacity: 50,
+            onDemandPercentageAboveBaseCapacity: 0,
             spotAllocationStrategy: "lowest-price",
         },
     },
+    capacityRebalance: true,
     minSize: 1,
     maxSize: 2,
     desiredCapacity: 1,
+    healthCheckGracePeriod: 10,
+    healthCheckType: "EC2",
     tags: [{
         key: "Name",
         value: "fleet-mgmt-ecs-instance",
@@ -82,7 +137,7 @@ const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
     }],
 });
 // Create a Capacity Provider for Spot instances
-const spotCapacityProvider = new aws.ecs.CapacityProvider("fleet-mgmt-asg-capacity-provider", {
+export const spotCapacityProvider = new aws.ecs.CapacityProvider("fleet-mgmt-asg-capacity-provider", {
     autoScalingGroupProvider: {
         autoScalingGroupArn: autoScalingGroup.arn,
         managedScaling: {
@@ -94,7 +149,7 @@ const spotCapacityProvider = new aws.ecs.CapacityProvider("fleet-mgmt-asg-capaci
 
 
 // Attach the Capacity Providers to the ECS cluster
-const asgAttachment = new aws.ecs.ClusterCapacityProviders("asgAttachment", {
+export const asgAttachment = new aws.ecs.ClusterCapacityProviders("asgAttachment", {
     clusterName: fleetMgmtECSCluster.name,
     capacityProviders: [spotCapacityProvider.name],
     defaultCapacityProviderStrategies: [{
