@@ -3,6 +3,7 @@ import * as aws from "@pulumi/aws";
 import {SubnetType} from "@pulumi/awsx/ec2";
 import {NatGatewayStrategy} from "@pulumi/awsx/types/enums/ec2";
 
+const instanceType = "t4g.small"
 export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {name: "fleet-mgmt"});
 
 // Create a VPC in a specific availability zone to minimize data transfer costs
@@ -37,7 +38,7 @@ export const securityGroup = new aws.ec2.SecurityGroup("fleet-mgmt-web-sg", {
             protocol: "tcp",
             fromPort: 22,
             toPort: 22,
-            prefixListIds: ["pl-03915406641cb1f53m"]
+            prefixListIds: ["pl-03915406641cb1f53"]
         },
         {
             protocol: "tcp",
@@ -77,10 +78,13 @@ const instanceProfile = new aws.iam.InstanceProfile("instanceProfile", {
     name: "instanceProfile",
     role: instanceRole.name,
 });
-const AMI_ID = "ami-0db23f5989fe7eb5e"; //AMAZON LINUX 2023 AMI
+// const AMI_ID = "ami-0db23f5989fe7eb5e"; //AMAZON LINUX 2023 AMI
+const AMI_ID = "ami-01b558732595557f2"; //arm instance amzn2-ami-ecs-kernel-5.10-hvm-2.0.20250129-arm64-ebs
 
 // User data script to install EC2 Instance Connect
-const userData = `#!/bin/bash
+export const clusterOutput = fleetMgmtECSCluster.name.apply(clusterName => {
+    const userData = `#!/bin/bash
+echo ECS_CLUSTER=${clusterName} >> /etc/ecs/ecs.config;
 yum update -y
 yum install -y ec2-instance-connect
 systemctl enable ec2-instance-connect
@@ -88,73 +92,77 @@ systemctl start ec2-instance-connect
 `;
 
 // Define the launch configuration
-const launchConfiguration = new aws.ec2.LaunchTemplate("fleet-mgmt-launch-config", {
-    imageId: AMI_ID, // Replace with your desired AMI ID
-    instanceType: "t2.micro",
-    vpcSecurityGroupIds: [securityGroup.id], // Replace with your security group ID
-    iamInstanceProfile: {
-        arn: instanceProfile.arn
-    },
-    tagSpecifications: [{
-        resourceType: "instance",
-        tags: {
-            Name: "ecs-instance",
+    const launchConfiguration = new aws.ec2.LaunchTemplate("fleet-mgmt-launch-config", {
+        imageId: AMI_ID, // Replace with your desired AMI ID
+        instanceType: instanceType,
+        vpcSecurityGroupIds: [securityGroup.id], // Replace with your security group ID
+        iamInstanceProfile: {
+            arn: instanceProfile.arn
         },
-    }],
-    userData: Buffer.from(userData).toString('base64'),
-    updateDefaultVersion: true,
-});
+        tagSpecifications: [{
+            resourceType: "instance",
+            tags: {
+                Name: "ecs-instance",
+            },
+        }],
+        userData: Buffer.from(userData).toString('base64'),
+        updateDefaultVersion: true,
+    });
 
 // Create the Auto Scaling Group with mixed instances policy
-const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
-    vpcZoneIdentifiers: [fleetMgmtVpc.publicSubnetIds[0]], // Replace with your subnet IDs
-    mixedInstancesPolicy: {
-        launchTemplate: {
-            launchTemplateSpecification: {
-                launchTemplateId: launchConfiguration.id,
-                version: launchConfiguration.latestVersion.apply(o => o.toString()),
+    const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
+        vpcZoneIdentifiers: [fleetMgmtVpc.publicSubnetIds[0]], // Replace with your subnet IDs
+        mixedInstancesPolicy: {
+            launchTemplate: {
+                launchTemplateSpecification: {
+                    launchTemplateId: launchConfiguration.id,
+                    version: launchConfiguration.latestVersion.apply(o => o.toString()),
+                },
+                overrides: [
+                    {instanceType: instanceType},
+                ],
             },
-            overrides: [
-                {instanceType: "t2.micro"},
-            ],
+            instancesDistribution: {
+                onDemandBaseCapacity: 1,
+                onDemandPercentageAboveBaseCapacity: 0,
+                spotAllocationStrategy: "lowest-price",
+            },
         },
-        instancesDistribution: {
-            onDemandBaseCapacity: 1,
-            onDemandPercentageAboveBaseCapacity: 0,
-            spotAllocationStrategy: "lowest-price",
-        },
-    },
-    capacityRebalance: true,
-    minSize: 1,
-    maxSize: 2,
-    desiredCapacity: 1,
-    healthCheckGracePeriod: 10,
-    healthCheckType: "EC2",
-    tags: [{
-        key: "Name",
-        value: "fleet-mgmt-ecs-instance",
-        propagateAtLaunch: true,
-    }],
-});
+        capacityRebalance: true,
+        minSize: 0,
+        maxSize: 1,
+        desiredCapacity: 1,
+        healthCheckGracePeriod: 10,
+        healthCheckType: "EC2",
+        tags: [{
+            key: "Name",
+            value: "fleet-mgmt-ecs-instance",
+            propagateAtLaunch: true,
+        }],
+    });
 // Create a Capacity Provider for Spot instances
-export const spotCapacityProvider = new aws.ecs.CapacityProvider("fleet-mgmt-asg-capacity-provider", {
-    autoScalingGroupProvider: {
-        autoScalingGroupArn: autoScalingGroup.arn,
-        managedScaling: {
-            status: "ENABLED",
-            targetCapacity: 100,
+    const spotCapacityProvider = new aws.ecs.CapacityProvider("fleet-mgmt-asg-capacity-provider", {
+        autoScalingGroupProvider: {
+            autoScalingGroupArn: autoScalingGroup.arn,
+            managedScaling: {
+                status: "ENABLED",
+                targetCapacity: 100,
+            },
         },
-    },
-});
+    });
 
 
 // Attach the Capacity Providers to the ECS cluster
-export const asgAttachment = new aws.ecs.ClusterCapacityProviders("asgAttachment", {
-    clusterName: fleetMgmtECSCluster.name,
-    capacityProviders: [spotCapacityProvider.name],
-    defaultCapacityProviderStrategies: [{
-        capacityProvider: spotCapacityProvider.name,
-        weight: 1,
-    }],
+    const asgAttachment = new aws.ecs.ClusterCapacityProviders("asgAttachment", {
+        clusterName: fleetMgmtECSCluster.name,
+        capacityProviders: [spotCapacityProvider.name],
+        defaultCapacityProviderStrategies: [{
+            capacityProvider: spotCapacityProvider.name,
+            weight: 1,
+        }],
+    });
+
+    return {spotCapacityProvider, asgAttachment};
 });
+
 

@@ -1,6 +1,6 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import {fleetMgmtECSCluster, fleetMgmtVpc, spotCapacityProvider} from "../cluster/base";
+import {fleetMgmtECSCluster, fleetMgmtVpc, clusterOutput} from "../cluster/base";
 import {fleetMgmtLB} from "../cluster/lb";
 import * as pulumi from "@pulumi/pulumi";
 
@@ -9,7 +9,7 @@ const containerName = serviceName;
 const containerPort = 8080;
 
 
-const releaseTag = "release-0.0.2";
+const releaseTag = "release-0.0.3";
 
 const executionRole = new aws.iam.Role("ecs-execution-role", {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ecs-tasks.amazonaws.com"})
@@ -43,7 +43,8 @@ function createRepoAndImage() {
         repositoryUrl: repository.repositoryUrl,
         context: "../../fleet-management-backend-v2", // Path to your application directory containing the Dockerfile
         //todo: take this from an external arg.
-        imageTag: releaseTag
+        imageTag: releaseTag,
+        platform: "linux/arm64"
     }, {dependsOn: [repository]});
     image.imageUri.apply(url => pulumi.log.info(`${url}`).then(() => console.log("logged image uri")));
     return {repository, image};
@@ -139,7 +140,7 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
             rollback: true
         },
         capacityProviderStrategies: [{
-            capacityProvider: spotCapacityProvider.name,
+            capacityProvider: clusterOutput.spotCapacityProvider.name,
             weight: 1,
             base: 0,
         }],
