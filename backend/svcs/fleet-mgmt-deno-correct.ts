@@ -9,7 +9,7 @@ const containerName = serviceName;
 const containerPort = 8080;
 
 
-const releaseTag = "release-0.0.3";
+const releaseTag = "release-0.0.4";
 
 const executionRole = new aws.iam.Role("ecs-execution-role", {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ecs-tasks.amazonaws.com"})
