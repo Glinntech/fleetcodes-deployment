@@ -9,7 +9,7 @@ const containerName = serviceName;
 const containerPort = 8080;
 
 
-const releaseTag = "release-0.0.5";
+const releaseTag = "release-0.0.8";
 
 const executionRole = new aws.iam.Role("ecs-execution-role", {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ecs-tasks.amazonaws.com"})
@@ -68,7 +68,7 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
                 portMappings: [
                     {
                         containerPort: containerPort,
-                        hostPort: containerPort,
+                        hostPort: 0,
                         protocol: "tcp",
                     },
                 ],
@@ -84,7 +84,7 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
 // Create a target group
     const targetGroup = new aws.lb.TargetGroup(serviceName, {
         protocol: "HTTP",
-        port: containerPort,
+        port: 80,
         vpcId: fleetMgmtVpc.vpcId,
         healthCheck: {
 
@@ -129,6 +129,7 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
              * Number of consecutive health check failures required before considering a target unhealthy. The range is 2-10. Defaults to 3.
              */
             unhealthyThreshold: 5,
+            port:"traffic-port"
         }
     });
 

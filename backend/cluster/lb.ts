@@ -1,11 +1,11 @@
 import * as aws from "@pulumi/aws";
-import {fleetMgmtVpc, securityGroup} from "./base";
+import {fleetMgmtVpc, albSecurityGroup} from "./base";
 import * as pulumi from "@pulumi/pulumi";
 
 
 // Create an Application Load Balancer
 export const fleetMgmtLB = new aws.lb.LoadBalancer("fleet-mgmt-lb", {
-    securityGroups: [securityGroup.id],
+    securityGroups: [albSecurityGroup.id],
     subnets: fleetMgmtVpc.publicSubnetIds,
     enableCrossZoneLoadBalancing: false
 });
