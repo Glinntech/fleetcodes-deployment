@@ -1,18 +1,23 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import {fleetMgmtECSCluster, fleetMgmtVpc, clusterOutput} from "../cluster/base";
-import {fleetMgmtLB} from "../cluster/lb";
+import {
+    clusterOutput,
+    fleetMgmtECSCluster,
+    fleetMgmtVpc,
+} from "../cluster/base";
+import { fleetMgmtLB } from "../cluster/lb";
 import * as pulumi from "@pulumi/pulumi";
 
 const serviceName = "fleet-mgmt-api";
 const containerName = serviceName;
 const containerPort = 8080;
 
-
-const releaseTag = "release-0.0.8";
-
+const fleetMgmtReleaseConfig = new pulumi.Config("fleet-mgmt");
+const releaseTag = fleetMgmtReleaseConfig.require("releaseTag");
 const executionRole = new aws.iam.Role("ecs-execution-role", {
-    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({Service: "ecs-tasks.amazonaws.com"})
+    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+        Service: "ecs-tasks.amazonaws.com",
+    }),
 });
 // Attach the necessary policies to the execution role
 new aws.iam.RolePolicyAttachment("ecs-execution-policy", {
@@ -21,13 +26,13 @@ new aws.iam.RolePolicyAttachment("ecs-execution-policy", {
 });
 
 function createRepoAndImage() {
-// Create an ECR repository
+    // Create an ECR repository
     const repository = new aws.ecr.Repository(serviceName, {
         forceDelete: true, // Optional: Enables force deletion of the repository
         name: serviceName,
     });
-// Log the repository URL length
-    repository.repositoryUrl.apply(url => {
+    // Log the repository URL length
+    repository.repositoryUrl.apply((url) => {
         const urlLength = url.length;
         pulumi.log.info(`Repository URL length: ${urlLength}`).then(() => {
             if (urlLength > 255) {
@@ -37,21 +42,27 @@ function createRepoAndImage() {
             }
         });
     });
-    repository.repositoryUrl.apply(url => pulumi.log.info(`${url}`).then(() => console.log("logged repository url")));
-// Build and push the Docker image to ECR
+    repository.repositoryUrl.apply((url) =>
+        pulumi.log.info(`${url}`).then(() =>
+            console.log("logged repository url")
+        )
+    );
+    // Build and push the Docker image to ECR
     const image = new awsx.ecr.Image(serviceName, {
         repositoryUrl: repository.repositoryUrl,
         context: "../../fleet-management-backend-v2", // Path to your application directory containing the Dockerfile
         //todo: take this from an external arg.
         imageTag: releaseTag,
-        platform: "linux/arm64"
-    }, {dependsOn: [repository]});
-    image.imageUri.apply(url => pulumi.log.info(`${url}`).then(() => console.log("logged image uri")));
-    return {repository, image};
+        platform: "linux/arm64",
+    }, { dependsOn: [repository] });
+    image.imageUri.apply((url) =>
+        pulumi.log.info(`${url}`).then(() => console.log("logged image uri"))
+    );
+    return { repository, image };
 }
 
 export const buildResult = createRepoAndImage();
-export const output = buildResult.repository.repositoryUrl.apply(url => {
+export const output = buildResult.repository.repositoryUrl.apply((url) => {
     // Define the task definition
     const fleetMgmtTD = new aws.ecs.TaskDefinition(serviceName, {
         family: serviceName,
@@ -76,18 +87,16 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
         ]),
 
         tags: {
-            deploymentType: "backend"
+            deploymentType: "backend",
         },
-    }, {dependsOn: [buildResult.image]});
+    }, { dependsOn: [buildResult.image] });
 
-
-// Create a target group
+    // Create a target group
     const targetGroup = new aws.lb.TargetGroup(serviceName, {
         protocol: "HTTP",
         port: 80,
         vpcId: fleetMgmtVpc.vpcId,
         healthCheck: {
-
             /**
              * Number of consecutive health check successes required before considering a target healthy. The range is 2-10. Defaults to 3.
              */
@@ -129,8 +138,8 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
              * Number of consecutive health check failures required before considering a target unhealthy. The range is 2-10. Defaults to 3.
              */
             unhealthyThreshold: 5,
-            port:"traffic-port"
-        }
+            port: "traffic-port",
+        },
     });
 
     const fleetMgmtService = new aws.ecs.Service(serviceName, {
@@ -138,7 +147,7 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
         taskDefinition: fleetMgmtTD.arn,
         deploymentCircuitBreaker: {
             enable: true,
-            rollback: true
+            rollback: true,
         },
         capacityProviderStrategies: [{
             capacityProvider: clusterOutput.spotCapacityProvider.name,
@@ -159,30 +168,28 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
         orderedPlacementStrategies: [{
             type: "binpack",
 
-            field: "memory"
+            field: "memory",
+        }, {
+            type: "spread",
+            field: "instanceId",
+        }],
+        tags: {
+            deploymentType: "backend",
         },
-            {
-                type: "spread",
-                field: "instanceId"
-            }]
-        , tags: {
-            deploymentType: "backend"
-        },
-    }, {dependsOn: [fleetMgmtTD]});
+    }, { dependsOn: [fleetMgmtTD] });
 
-
-// Define the scalable target
+    // Define the scalable target
     const scalableTarget = new aws.appautoscaling.Target(serviceName, {
         maxCapacity: 10,
         minCapacity: 1,
-        resourceId: pulumi.interpolate`service/${fleetMgmtECSCluster.name}/${fleetMgmtService.name}`,
+        resourceId: pulumi
+            .interpolate`service/${fleetMgmtECSCluster.name}/${fleetMgmtService.name}`,
         scalableDimension: "ecs:service:DesiredCount",
         serviceNamespace: "ecs",
     });
     const scaleOutPolicyName = serviceName + "-cpu-scale-policy";
 
-
-// Create a scaling policy for scaling out
+    // Create a scaling policy for scaling out
     const scaleOutPolicy = new aws.appautoscaling.Policy(scaleOutPolicyName, {
         policyType: "TargetTrackingScaling",
         resourceId: scalableTarget.resourceId,
@@ -196,9 +203,9 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
             scaleInCooldown: 60,
             scaleOutCooldown: 15,
         },
-    }, {dependsOn: [scalableTarget]});
+    }, { dependsOn: [scalableTarget] });
 
-// Create a listener for the ALB
+    // Create a listener for the ALB
     new aws.lb.Listener("fleet-mgmt-listener", {
         loadBalancerArn: fleetMgmtLB.arn,
         port: 80,
@@ -209,11 +216,5 @@ export const output = buildResult.repository.repositoryUrl.apply(url => {
             },
         ],
     });
-    return {fleetMgmtTD, fleetMgmtService, targetGroup};
+    return { fleetMgmtTD, fleetMgmtService, targetGroup };
 });
-
-
-
-
-
-
