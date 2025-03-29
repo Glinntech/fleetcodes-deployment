@@ -7,6 +7,7 @@ import {
 } from "../cluster/base";
 import { fleetMgmtLB } from "../cluster/lb";
 import * as pulumi from "@pulumi/pulumi";
+import { certificate } from "../dns/route53";
 
 const serviceName = "fleet-mgmt-api";
 const containerName = serviceName;
@@ -216,5 +217,19 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
             },
         ],
     });
-    return { fleetMgmtTD, fleetMgmtService, targetGroup };
+
+
+// Add HTTPS listener to your ALB
+const httpsListener = new aws.lb.Listener("https-listener", {
+    loadBalancerArn: fleetMgmtLB.arn,
+    port: 443,
+    protocol: "HTTPS",
+    sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
+    certificateArn: certificate.arn, // Reference the certificate created in index.ts
+    defaultActions: [{
+        type: "forward",
+        targetGroupArn: targetGroup.arn,
+    }],
+});
+    return { fleetMgmtTD, fleetMgmtService, targetGroup,httpsListener };
 });

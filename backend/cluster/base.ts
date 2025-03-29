@@ -1,7 +1,10 @@
 import * as awsx from "@pulumi/awsx";
 import * as aws from "@pulumi/aws";
 import { SubnetType } from "@pulumi/awsx/ec2";
-import { NatGatewayStrategy } from "@pulumi/awsx/types/enums/ec2";
+import {
+    NatGatewayStrategy,
+    SubnetAllocationStrategy,
+} from "@pulumi/awsx/types/enums/ec2";
 
 const instanceType = "t4g.small";
 export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {
@@ -11,7 +14,8 @@ export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {
 // Create a VPC in a specific availability zone to minimize data transfer costs
 export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
     numberOfAvailabilityZones: 2,
-    subnetSpecs: [{ type: SubnetType.Public }],
+    subnetStrategy: SubnetAllocationStrategy.Auto,
+    subnetSpecs: [{ type: SubnetType.Public, cidrMask: 20 }],
     natGateways: {
         strategy: NatGatewayStrategy.None,
     },
@@ -31,26 +35,16 @@ export const albSecurityGroup = new aws.ec2.SecurityGroup(
     "fleet-mgmt-alb-web-sg",
     {
         vpcId: fleetMgmtVpc.vpcId,
-        description: "Allow HTTP traffic",
+        description: "Allow HTTPS traffic",
         ingress: [{
-            protocol: "tcp",
-            fromPort: 8080,
-            toPort: 8080,
-            cidrBlocks: ["0.0.0.0/0"],
-        }, {
-            protocol: "tcp",
-            fromPort: 22,
-            toPort: 22,
-            prefixListIds: ["pl-03915406641cb1f53"],
-        }, {
             protocol: "tcp",
             fromPort: 80,
             toPort: 80,
             cidrBlocks: ["0.0.0.0/0"],
         }, {
             protocol: "tcp",
-            fromPort: 413,
-            toPort: 413,
+            fromPort: 443,
+            toPort: 443,
             cidrBlocks: ["0.0.0.0/0"],
         }],
         egress: [{
