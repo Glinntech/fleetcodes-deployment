@@ -87,6 +87,7 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
         protocol: "HTTP",
         port: 80,
         vpcId: fleetMgmtVpc.vpcId,
+        deregistrationDelay: 45,
         healthCheck: {
             /**
              * Number of consecutive health check successes required before considering a target healthy. The range is 2-10. Defaults to 3.
