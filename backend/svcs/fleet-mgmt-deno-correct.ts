@@ -32,19 +32,9 @@ function createRepoAndImage() {
         forceDelete: true, // Optional: Enables force deletion of the repository
         name: serviceName,
     });
-    // Log the repository URL length
-    repository.repositoryUrl.apply((url) => {
-        const urlLength = url.length;
-        pulumi.log.info(`Repository URL length: ${urlLength}`).then(() => {
-            if (urlLength > 255) {
-                console.error("Repository URL exceeds 255 characters.");
-            } else {
-                console.log("Repository URL is within the allowed limit.");
-            }
-        });
-    });
+
     repository.repositoryUrl.apply((url) =>
-        pulumi.log.info(`${url}`).then(() =>
+        pulumi.log.info(`container registry url: ${url}`).then(() =>
             console.log("logged repository url")
         )
     );
@@ -57,7 +47,7 @@ function createRepoAndImage() {
         platform: "linux/arm64",
     }, { dependsOn: [repository] });
     image.imageUri.apply((url) =>
-        pulumi.log.info(`${url}`).then(() => console.log("logged image uri"))
+        pulumi.log.info(`container images url: ${url}`).then(() => console.log("logged image uri"))
     );
     return { repository, image };
 }
@@ -206,17 +196,6 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
         },
     }, { dependsOn: [scalableTarget] });
 
-    // Create a listener for the ALB
-    new aws.lb.Listener("fleet-mgmt-listener", {
-        loadBalancerArn: fleetMgmtLB.arn,
-        port: 80,
-        defaultActions: [
-            {
-                type: "forward",
-                targetGroupArn: targetGroup.arn,
-            },
-        ],
-    });
 
 
 // Add HTTPS listener to your ALB
