@@ -1,13 +1,10 @@
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import {
-    clusterOutput,
-    fleetMgmtECSCluster,
-    fleetMgmtVpc,
-} from "../cluster/base";
+import { clusterOutput, fleetMgmtECSCluster } from "../cluster/base";
 import { fleetMgmtLB } from "../cluster/lb";
 import * as pulumi from "@pulumi/pulumi";
-import { certificate } from "../dns/route53";
+import { certificate, validatonRecordForAppSubdomain } from "../dns/route53";
+import { fleetMgmtVpc } from "../cluster/vpc";
 
 const serviceName = "fleet-mgmt-api";
 const containerName = serviceName;
@@ -47,7 +44,9 @@ function createRepoAndImage() {
         platform: "linux/arm64",
     }, { dependsOn: [repository] });
     image.imageUri.apply((url) =>
-        pulumi.log.info(`container images url: ${url}`).then(() => console.log("logged image uri"))
+        pulumi.log.info(`container images url: ${url}`).then(() =>
+            console.log("logged image uri")
+        )
     );
     return { repository, image };
 }
@@ -86,7 +85,7 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
     const targetGroup = new aws.lb.TargetGroup(serviceName, {
         protocol: "HTTP",
         port: 80,
-        vpcId: fleetMgmtVpc.vpcId,
+        vpcId: fleetMgmtVpc.id,
         deregistrationDelay: 45,
         healthCheck: {
             /**
@@ -133,6 +132,20 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
             port: "traffic-port",
         },
     });
+    // Add HTTPS listener to your ALB
+    const httpsListener = new aws.lb.Listener("https-listener", {
+        loadBalancerArn: fleetMgmtLB.arn,
+        port: 443,
+        protocol: "HTTPS",
+        sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
+        certificateArn: certificate.arn, // Reference the certificate created in index.ts
+        defaultActions: [{
+            type: "forward",
+            targetGroupArn: targetGroup.arn,
+        }],
+    }, {
+        dependsOn: [fleetMgmtLB, certificate, validatonRecordForAppSubdomain],
+    });
 
     const fleetMgmtService = new aws.ecs.Service(serviceName, {
         cluster: fleetMgmtECSCluster.arn,
@@ -168,7 +181,7 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
         tags: {
             deploymentType: "backend",
         },
-    }, { dependsOn: [fleetMgmtTD] });
+    }, { dependsOn: [fleetMgmtTD, httpsListener] });
 
     // Define the scalable target
     const scalableTarget = new aws.appautoscaling.Target(serviceName, {
@@ -197,19 +210,5 @@ export const output = buildResult.repository.repositoryUrl.apply((url) => {
         },
     }, { dependsOn: [scalableTarget] });
 
-
-
-// Add HTTPS listener to your ALB
-const httpsListener = new aws.lb.Listener("https-listener", {
-    loadBalancerArn: fleetMgmtLB.arn,
-    port: 443,
-    protocol: "HTTPS",
-    sslPolicy: "ELBSecurityPolicy-TLS13-1-2-2021-06",
-    certificateArn: certificate.arn, // Reference the certificate created in index.ts
-    defaultActions: [{
-        type: "forward",
-        targetGroupArn: targetGroup.arn,
-    }],
-});
-    return { fleetMgmtTD, fleetMgmtService, targetGroup,httpsListener };
+    return { fleetMgmtTD, fleetMgmtService, targetGroup, httpsListener };
 });

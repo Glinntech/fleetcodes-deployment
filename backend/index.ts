@@ -26,17 +26,7 @@ output.fleetMgmtTD.apply((t) =>
         pulumi.log.info(`id for td ${id}`).then(() => console.log("logged id"))
     )
 );
-atlasIpList.apply((ips) =>
-    pulumi.log.info(
-        `ips ${
-            ips.map((it) =>
-                it.ipAddress.apply((ip) =>
-                    pulumi.log.info(`whitelisted ip ${ip}`)
-                )
-            )
-        }`,
-    ).then(() => console.log("ip's whitelist complete"))
-);
+
 clusterOutput.asgAttachment.capacityProviders.apply((providers) =>
     pulumi.log.info(`capacity providers name ${providers}`).then(() =>
         console.log("capacity providers attached")
@@ -74,3 +64,21 @@ certificate.subjectAlternativeNames.apply((subjectAlternativeNames) =>
 );
 
 export const nameServers = dnsResults.zone.nameServers;
+
+
+
+function whitelistAtlasIpList() {
+    atlasIpList.apply((ips) =>
+        pulumi.log.info(
+            `ips ${
+                ips.map((it) =>
+                    it.ipAddress.apply((ip) =>
+                        pulumi.log.info(`whitelisted ip ${ip}`)
+                    )
+                )
+            }`,
+        ).then(() => console.log("ip's whitelist complete"))
+    );
+}
+
+whitelistAtlasIpList();

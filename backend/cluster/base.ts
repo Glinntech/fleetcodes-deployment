@@ -1,5 +1,6 @@
 import * as awsx from "@pulumi/awsx";
 import * as aws from "@pulumi/aws";
+import { fleetMgmtVpc, ipv6SubnetPublic1 } from "./vpc";
 import { SubnetType } from "@pulumi/awsx/ec2";
 import {
     NatGatewayStrategy,
@@ -11,15 +12,7 @@ export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {
     name: "fleet-mgmt",
 });
 
-// Create a VPC in a specific availability zone to minimize data transfer costs
-export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
-    numberOfAvailabilityZones: 2,
-    subnetStrategy: SubnetAllocationStrategy.Auto,
-    subnetSpecs: [{ type: SubnetType.Public, cidrMask: 20 }],
-    natGateways: {
-        strategy: NatGatewayStrategy.None,
-    },
-});
+
 
 // const ecsOptimizedAl2AmiId = aws.ec2.getAmi({
 //     filters: [
@@ -30,23 +23,26 @@ export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
 // }).then(ami => ami.id);
 // arn:aws:imagebuilder:us-east-2:aws:image/amazon-linux-2-ecs-optimized-kernel-5-x86/2025.1.29
 
+const vpcId = fleetMgmtVpc.id;
 // Create a security group, web allow security group
 export const albSecurityGroup = new aws.ec2.SecurityGroup(
     "fleet-mgmt-alb-web-sg",
     {
-        vpcId: fleetMgmtVpc.vpcId,
+        vpcId,
         description: "Allow HTTPS traffic",
         ingress: [{
             protocol: "tcp",
             fromPort: 443,
             toPort: 443,
             cidrBlocks: ["0.0.0.0/0"],
+            ipv6CidrBlocks: ["::/0"],
         }],
         egress: [{
             protocol: "-1",
             fromPort: 0,
             toPort: 0,
             cidrBlocks: ["0.0.0.0/0"],
+            ipv6CidrBlocks: ["::/0"],
         }],
     },
 );
@@ -54,13 +50,14 @@ export const albSecurityGroup = new aws.ec2.SecurityGroup(
 export const ecsInstanceSecurityGroup = new aws.ec2.SecurityGroup(
     "fleet-mgmt-asg-web-sg",
     {
-        vpcId: fleetMgmtVpc.vpcId,
+        vpcId,
         description: "Allow HTTP traffic",
         ingress: [{
             protocol: "tcp",
             fromPort: 22,
             toPort: 22,
             prefixListIds: ["pl-03915406641cb1f53"],
+            ipv6CidrBlocks: ["::/0"],
         }, {
             protocol: "tcp",
             fromPort: 49153,
@@ -77,6 +74,7 @@ export const ecsInstanceSecurityGroup = new aws.ec2.SecurityGroup(
             fromPort: 0,
             toPort: 0,
             cidrBlocks: ["0.0.0.0/0"],
+            ipv6CidrBlocks: ["::/0"],
         }],
     },
 );
@@ -136,7 +134,7 @@ systemctl start ec2-instance-connect
 
     // Create the Auto Scaling Group with mixed instances policy
     const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
-        vpcZoneIdentifiers: [fleetMgmtVpc.publicSubnetIds[0]], // Replace with your subnet IDs
+        vpcZoneIdentifiers: [ipv6SubnetPublic1.id], // Replace with your subnet IDs
         mixedInstancesPolicy: {
             launchTemplate: {
                 launchTemplateSpecification: {
