@@ -1,6 +1,6 @@
 import * as awsx from "@pulumi/awsx";
 import * as aws from "@pulumi/aws";
-import { fleetMgmtVpc, ipv6Subneublic1 } from "./vpc";
+import { fleetMgmtVpc, publicSubnetIds } from "./vpc";
 import { SubnetType } from "@pulumi/awsx/ec2";
 import {
     NatGatewayStrategy,
@@ -133,7 +133,7 @@ systemctl start ec2-instance-connect
 
     // Create the Auto Scaling Group with mixed instances policy
     const autoScalingGroup = new aws.autoscaling.Group("fleet-mgmt-asg", {
-        vpcZoneIdentifiers: [ipv6SubnetPublic1.id], // Replace with your subnet IDs
+        vpcZoneIdentifiers: publicSubnetIds, // Use all public subnets
         mixedInstancesPolicy: {
             launchTemplate: {
                 launchTemplateSpecification: {

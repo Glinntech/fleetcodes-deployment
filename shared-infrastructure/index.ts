@@ -1,7 +1,7 @@
 import * as pulumi from "@pulumi/pulumi";
 
 // Import shared infrastructure components
-import { fleetMgmtVpc } from "./cluster/vpc";
+import { fleetMgmtVpc, publicSubnetIds } from "./cluster/vpc";
 import { fleetMgmtECSCluster, albSecurityGroup, ecsInstanceSecurityGroup, clusterOutput } from "./cluster/base";
 import { fleetMgmtLB, sharedHttpsListener } from "./cluster/lb";
 import { sharedHostedZone, wildcardCertificate, domainName } from "./dns/route53";
@@ -51,8 +51,7 @@ export const sharedInfrastructure = {
 export {
     // VPC
     fleetMgmtVpc,
-    ipv6SubnetPublic1,
-    ipv6SubnetPublic2,
+    publicSubnetIds,
     
     // ECS
     fleetMgmtECSCluster,

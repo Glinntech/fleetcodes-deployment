@@ -8,4 +8,4 @@ config:
   sharedInfrastructureStackRef:
     type: string
     description: Reference to the shared infrastructure stack
-    default: fleetcodes/shared-infrastructure/dev
+    default: amaan75/shared-infrastructure/dev

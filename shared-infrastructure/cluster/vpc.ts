@@ -11,6 +11,14 @@ export const fleetMgmtVpc = new awsx.ec2.Vpc("fleet-mgmt-vpc", {
     natGateways: {
         strategy: NatGatewayStrategy.None,
     },
+    enableDnsHostnames: true,
+    enableDnsSupport: true,
+});
+
+// Enable IPv6 for the VPC
+const ipv6CidrBlock = new aws.ec2.VpcIpv6CidrBlockAssociation("fleet-mgmt-vpc-ipv6", {
+    vpcId: fleetMgmtVpc.vpcId,
+    assignGeneratedIpv6CidrBlock: true,
 });
 
 // Get availability zones for the current region
@@ -35,4 +43,12 @@ const publicRouteTable = new aws.ec2.RouteTable("fleet-mgmt-public-rt", {
         { ipv6CidrBlock: "::/0", gatewayId: igw.id },
     ],
     tags: { Name: "fleet-mgmt-public-rt" },
-});
+}, { dependsOn: [igw, ipv6CidrBlock] });
+
+
+// Export the public subnets for use by load balancer and other resources
+export const publicSubnetIds = fleetMgmtVpc.publicSubnetIds;
+
+// Create individual subnet references for explicit use
+export const publicSubnet1 = fleetMgmtVpc.publicSubnetIds.apply(ids => ids[0]);
+export const publicSubnet2 = fleetMgmtVpc.publicSubnetIds.apply(ids => ids[1]);

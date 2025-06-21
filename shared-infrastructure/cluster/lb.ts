@@ -1,15 +1,15 @@
 import * as aws from "@pulumi/aws";
 import { albSecurityGroup } from "./base";
 import * as pulumi from "@pulumi/pulumi";
-import { ipv6SubnetPublic1, ipv6SubnetPublic2 } from "./vpc";
+import { fleetMgmtVpc, publicSubnetIds } from "./vpc";
 import { wildcardCertificate } from "../dns/route53";
 
 // Create an Application Load Balancer
 export const fleetMgmtLB = new aws.lb.LoadBalancer("fleet-mgmt-lb", {
     securityGroups: [albSecurityGroup.id],
-    subnets: [ipv6SubnetPublic1.id, ipv6SubnetPublic2.id],
+    subnets: publicSubnetIds,
     enableCrossZoneLoadBalancing: false,
-    ipAddressType: "dualstack-without-public-ipv4",
+    ipAddressType: "dualstack",
 });
 
 // Create a shared HTTPS listener with a default 404 response

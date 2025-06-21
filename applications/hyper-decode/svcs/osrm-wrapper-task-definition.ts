@@ -68,20 +68,12 @@ function createFargateSecurityGroup(serviceName: string, vpcId: pulumi.Input<str
                 securityGroups: [efsSecurityGroupId], // Allow NFS from EFS security group
             }
         ],
-        egress: [
-            {
-                protocol: "-1",
-                fromPort: 0,
-                toPort: 0,
-                cidrBlocks: ["0.0.0.0/0"],
-            },
-            {
-                protocol: "-1",
-                fromPort: 0,
-                toPort: 0,
-                ipv6CidrBlocks: ["::/0"],
-            }
-        ],
+        egress: [{
+            protocol: "-1",
+            fromPort: 0,
+            toPort: 0,
+            cidrBlocks: ["0.0.0.0/0"],
+        }],
         tags: {
             Name: `${serviceName}-fargate-sg`,
         },
