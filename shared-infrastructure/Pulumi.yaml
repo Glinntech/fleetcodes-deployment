@@ -1,0 +1,6 @@
+name: shared-infrastructure
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Shared infrastructure components (VPC, ECS Cluster, Load Balancer, etc.)

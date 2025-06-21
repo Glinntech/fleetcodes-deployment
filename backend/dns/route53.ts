@@ -28,7 +28,7 @@ export function createHostedZone(
             Name: domainName,
             ...tags,
         },
-    });
+    },{retainOnDelete:true});
     
     // Log the nameservers for reference
     hostedZone.nameServers.apply(nameservers => 

@@ -1,0 +1,11 @@
+name: fleet-mgmt-application
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Fleet Management Application Stack
+config:
+  sharedInfrastructureStackRef:
+    type: string
+    description: Reference to the shared infrastructure stack
+    default: amaan75/shared-infrastructure/dev

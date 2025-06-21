@@ -1,0 +1,9 @@
+config:
+  aws:region: us-east-2
+  aws:profile: personal
+  hyper-decode-application:sharedInfrastructureStackRef: amaan75/shared-infrastructure/dev
+  hyper-decode:releaseTag: 0.0.8
+  osrm:releaseTag: 0.0.8
+  hyper-decode:efsFileSystemId: fs-0c3df8d84e599c05c
+  hyper-decode:appSubdomain: hyper-decode
+

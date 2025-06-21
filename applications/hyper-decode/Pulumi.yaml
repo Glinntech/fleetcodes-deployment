@@ -1,0 +1,11 @@
+name: hyper-decode-application
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Hyper-Decode Application Stack
+config:
+  sharedInfrastructureStackRef:
+    type: string
+    description: Reference to the shared infrastructure stack
+    default: organization/shared-infrastructure/dev

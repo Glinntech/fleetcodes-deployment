@@ -1,0 +1,7 @@
+config:
+  aws:region: us-east-2
+  aws:profile: personal
+  fleet-mgmt-application:sharedInfrastructureStackRef: amaan75/shared-infrastructure/dev
+  fleet-mgmt:releaseTag: 0.0.1
+  atlas:projectid: 66b476565ad9b27d65a35a76
+  fleet-mgmt:appSubdomain: fleet-mgmt

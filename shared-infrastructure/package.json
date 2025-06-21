@@ -1,0 +1,16 @@
+{
+    "name": "shared-infrastructure",
+    "version": "1.0.0",
+    "description": "Shared infrastructure for all applications",
+    "main": "index.ts",
+    "dependencies": {
+        "@pulumi/aws": "^6.0.0",
+        "@pulumi/awsx": "^2.0.0",
+        "@pulumi/pulumi": "^3.0.0",
+        "@pulumi/mongodbatlas": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    }
+}

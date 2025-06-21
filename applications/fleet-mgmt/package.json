@@ -1,0 +1,17 @@
+{
+    "name": "fleet-mgmt-application",
+    "version": "1.0.0",
+    "description": "Fleet Management Application Stack",
+    "main": "index.ts",
+    "dependencies": {
+        "@pulumi/aws": "^6.0.0",
+        "@pulumi/awsx": "^2.0.0",
+        "@pulumi/pulumi": "^3.0.0",
+        "@pulumi/docker": "^4.0.0",
+        "@pulumi/mongodbatlas": "^3.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "typescript": "^5.0.0"
+    }
+}

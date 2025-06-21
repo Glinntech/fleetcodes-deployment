@@ -1,0 +1,13 @@
+{
+  "name": "hyper-decode-application",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "description": "Hyper-Decode Application Stack",
+  "dependencies": {
+    "@pulumi/aws": "^6.82.2",
+    "@pulumi/awsx": "^2.21.1",
+    "@pulumi/pulumi": "^3.177.0",
+    "@types/node": "^24.0.1",
+    "typescript": "^5.8.3"
+  }
+}
