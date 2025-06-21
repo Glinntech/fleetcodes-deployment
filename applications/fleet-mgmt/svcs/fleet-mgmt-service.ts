@@ -157,7 +157,7 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
         }],
         conditions: [{
             hostHeader: {
-                values: [`app.amaan.click`], // fleet-mgmt uses app subdomain
+                values: [`app.fleetcodes.com`], // fleet-mgmt uses app subdomain
             },
         }],
     });

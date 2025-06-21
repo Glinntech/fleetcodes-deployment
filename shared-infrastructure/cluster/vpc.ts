@@ -27,25 +27,6 @@ const az1 = availabilityZones.then((zones) => zones.names[0]);
 const az2 = availabilityZones.then((zones) => zones.names[1]);
 
 
-// --- Internet Gateway for Public Subnets ---
-const igw = new aws.ec2.InternetGateway("fleet-mgmt-igw", {
-    vpcId: fleetMgmtVpc.vpcId,
-    tags: { Name: "fleet-mgmt-igw" },
-});
-
-// --- Route Table for Public Subnets ---
-const publicRouteTable = new aws.ec2.RouteTable("fleet-mgmt-public-rt", {
-    vpcId: fleetMgmtVpc.vpcId,
-    routes: [
-        // Route for IPv4 Internet access
-        { cidrBlock: "0.0.0.0/0", gatewayId: igw.id },
-        // Route for IPv6 Internet access
-        { ipv6CidrBlock: "::/0", gatewayId: igw.id },
-    ],
-    tags: { Name: "fleet-mgmt-public-rt" },
-}, { dependsOn: [igw, ipv6CidrBlock] });
-
-
 // Export the public subnets for use by load balancer and other resources
 export const publicSubnetIds = fleetMgmtVpc.publicSubnetIds;
 

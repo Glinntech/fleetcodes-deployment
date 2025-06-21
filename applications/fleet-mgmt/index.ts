@@ -58,9 +58,9 @@ const whitelistOutput = whitelistIps(atlasProjectId,sharedInfraAsgName);
 const appDnsRecord = new aws.route53.Record("fleet-mgmt-dns-record", {
     zoneId: sharedHostedZoneId,
     name: appSubdomain,
-    type: "AAAA",
+    type: "A",
     aliases: [{
-        name: sharedLoadBalancerDnsName.apply(dns=>`dualstack.${dns}`),
+        name: sharedLoadBalancerDnsName.apply(dns=>`${dns}`),
         zoneId: sharedLoadBalancerZoneId,
         evaluateTargetHealth: true,
     }],

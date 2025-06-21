@@ -9,7 +9,7 @@ export const fleetMgmtLB = new aws.lb.LoadBalancer("fleet-mgmt-lb", {
     securityGroups: [albSecurityGroup.id],
     subnets: publicSubnetIds,
     enableCrossZoneLoadBalancing: false,
-    ipAddressType: "dualstack",
+    ipAddressType: "ipv4",
 });
 
 // Create a shared HTTPS listener with a default 404 response

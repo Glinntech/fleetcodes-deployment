@@ -2,6 +2,6 @@ config:
   aws:region: us-east-2
   aws:profile: fleetcodes
   fleet-mgmt-application:sharedInfrastructureStackRef: fleetcodes/shared-infrastructure/dev
-  fleet-mgmt:releaseTag: 0.0.1
+  fleet-mgmt:releaseTag: 0.0.3
   atlas:projectid: 68506e44dec1a6488674588b
   fleet-mgmt:appSubdomain: app
