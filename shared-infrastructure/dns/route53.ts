@@ -1,13 +1,15 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
+const config = new pulumi.Config("route53");
+const domain = config.require("domain");
 /**
  * Domain configuration - this should be shared across all applications
  */
-export const domainName = "amaan.click";
+export const domainName = config.require("domain");
 
 //todo get this from pulumi config??
-export const hostedZoneId = "Z0543324J3T3G1B444O8";
+export const hostedZoneId = config.require("hostedZoneId");
 
 //hosted zone for the domain should be created manually in AWS Route53
 // here we will get it using the id instead.

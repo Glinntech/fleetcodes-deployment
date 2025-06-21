@@ -1,6 +1,6 @@
 import * as awsx from "@pulumi/awsx";
 import * as aws from "@pulumi/aws";
-import { fleetMgmtVpc, ipv6SubnetPublic1 } from "./vpc";
+import { fleetMgmtVpc, ipv6Subneublic1 } from "./vpc";
 import { SubnetType } from "@pulumi/awsx/ec2";
 import {
     NatGatewayStrategy,
@@ -21,7 +21,7 @@ export const fleetMgmtECSCluster = new aws.ecs.Cluster("fleet-mgmt", {
 // }).then(ami => ami.id);
 // arn:aws:imagebuilder:us-east-2:aws:image/amazon-linux-2-ecs-optimized-kernel-5-x86/2025.1.29
 
-const vpcId = fleetMgmtVpc.id;
+const vpcId = fleetMgmtVpc.vpcId;
 // Create a security group, web allow security group
 export const albSecurityGroup = new aws.ec2.SecurityGroup(
     "fleet-mgmt-alb-web-sg",

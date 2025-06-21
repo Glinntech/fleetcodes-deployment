@@ -1,4 +1,4 @@
-name: fleet-mgmt-application
+name: fleetcodes
 runtime:
   name: nodejs
   options:
@@ -8,4 +8,4 @@ config:
   sharedInfrastructureStackRef:
     type: string
     description: Reference to the shared infrastructure stack
-    default: amaan75/shared-infrastructure/dev
+    default: fleetcodes/shared-infrastructure/dev

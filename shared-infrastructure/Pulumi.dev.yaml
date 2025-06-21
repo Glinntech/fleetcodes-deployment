@@ -1,3 +1,5 @@
 config:
   aws:region: us-east-2
-  aws:profile: personal
+  aws:profile: fleetcodes
+  route53:domain: fleetcodes.com
+  route53:hostedZoneId: Z04646987ED2T2AZGTHQ
