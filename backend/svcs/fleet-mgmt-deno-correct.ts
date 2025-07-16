@@ -38,7 +38,7 @@ function createRepoAndImage() {
     // Build and push the Docker image to ECR
     const image = new awsx.ecr.Image(serviceName, {
         repositoryUrl: repository.repositoryUrl,
-        context: "../../fleet-management-backend-v2", // Path to your application directory containing the Dockerfile
+        context: "../../fleet-management-backend", // Path to your application directory containing the Dockerfile
         //todo: take this from an external arg.
         imageTag: releaseTag,
         platform: "linux/arm64",
