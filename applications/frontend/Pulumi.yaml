@@ -1,0 +1,20 @@
+name: frontend-application
+runtime: nodejs
+description: Frontend application deployment for AWS
+template:
+  config:
+    aws:region:
+      description: AWS region
+      default: us-east-2
+    aws:profile:
+      description: AWS profile to use
+      default: fleetcodes
+    frontend:sharedInfrastructureStackRef:
+      description: Reference to shared infrastructure stack
+      default: fleetcodes/shared-infrastructure/dev
+    frontend:appSubdomain:
+      description: Subdomain for frontend application
+      default: www
+    frontend:releaseTag:
+      description: Release tag for frontend application
+      default: latest

@@ -171,10 +171,14 @@ case "${1:-menu}" in
     "hyper-decode")
         deploy_application "hyper-decode"
         ;;
+    "frontend")
+        deploy_application "frontend"
+        ;;
     "all")
         deploy_shared_infra
         deploy_application "fleet-mgmt"
         deploy_application "hyper-decode"
+        deploy_application "frontend"
         ;;
     "status")
         show_status
@@ -189,6 +193,7 @@ case "${1:-menu}" in
         echo "  shared     - Deploy shared infrastructure only"
         echo "  fleet-mgmt - Deploy fleet management application"
         echo "  hyper-decode - Deploy hyper-decode application"
+        echo "  frontend   - Deploy frontend application"
         echo "  all        - Deploy shared infrastructure and all applications"
         echo "  status     - Show status of all stacks"
         echo "  destroy    - Destroy all resources (with confirmation)"
@@ -198,5 +203,6 @@ case "${1:-menu}" in
         echo "  $0 shared      # Deploy shared infrastructure first"
         echo "  $0 fleet-mgmt  # Deploy applications after shared infra"
         echo "  $0 hyper-decode"
+        echo "  $0 frontend"
         ;;
 esac

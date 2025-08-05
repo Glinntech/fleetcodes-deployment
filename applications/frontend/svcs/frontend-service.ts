@@ -1,9 +1,8 @@
+import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
-import * as pulumi from "@pulumi/pulumi";
 
-// Service configuration interface
-export interface FleetMgmtServiceConfig {
+export interface FrontendServiceConfig {
     serviceName: string;
     containerName: string;
     containerPort: number;
@@ -14,12 +13,17 @@ export interface FleetMgmtServiceConfig {
     loadBalancerArn: pulumi.Input<string>;
     certificateArn: pulumi.Input<string>;
     httpsListenerArn: pulumi.Input<string>;
+    appSubdomain: string;
 }
 
-// Application configuration
-const fleetMgmtReleaseConfig = new pulumi.Config("fleet-mgmt");
-const releaseTag = fleetMgmtReleaseConfig.get("releaseTag");
-const backendPath = fleetMgmtReleaseConfig.get("backendPath") || "../../../fleet-management-backend";
+// Get Pulumi configuration
+const frontendConfig = new pulumi.Config("frontend");
+const frontendPath = frontendConfig.get("frontendPath") || "../../../fleet-management-frontend/fleet-mgmt";
+const dockerfileRelativePath = frontendConfig.get("dockerfilePath") || "./Dockerfile";
+
+// Construct the full Dockerfile path relative to frontend path
+const dockerfilePath = `${frontendPath}/${dockerfileRelativePath.replace('./', '')}`;
+
 
 // Create ECS execution role
 function createExecutionRole(serviceName: string) {
@@ -46,28 +50,27 @@ function createRepoAndImage(serviceName: string) {
         name: serviceName,
     });
 
-    repository.repositoryUrl.apply((url) =>
+    repository.repositoryUrl.apply((url: string) =>
         pulumi.log.info(`Container registry URL: ${url}`)
     );
 
-    // Build and push the Docker image to ECR
-    const image = new awsx.ecr.Image(serviceName, {
-        repositoryUrl: repository.repositoryUrl,
-        context: backendPath, // Path to your application directory
-        imageTag: releaseTag,
-        platform: "linux/arm64",
-    }, { dependsOn: [repository] });
+  // Build and push Docker image to ECR
+  const image = new awsx.ecr.Image("frontend", {
+    repositoryUrl: repository.repositoryUrl,
+    context: frontendPath, // Use the configured frontend path
+    dockerfile: dockerfilePath, // Use the configured Dockerfile path
+    platform: "linux/amd64",
+  });
 
-    image.imageUri.apply((url) =>
+  image.imageUri.apply((url: string) =>
         pulumi.log.info(`Container image URL: ${url}`)
     );
 
     return { repository, image };
 }
 
-// Main service creation function
-export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
-    const { serviceName, containerName, containerPort, ecsClusterName, ecsClusterArn, subnetIds, securityGroupId, loadBalancerArn, certificateArn, httpsListenerArn } = config;
+export function createFrontendService(config: FrontendServiceConfig) {
+    const { serviceName, containerName, containerPort, ecsClusterName, ecsClusterArn, subnetIds, httpsListenerArn, appSubdomain } = config;
 
     // Create execution role
     const executionRole = createExecutionRole(serviceName);
@@ -81,7 +84,9 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
         name: logGroupName,
         retentionInDays: 7,
     });
+    
     const awsRegion = aws.config.region;
+    
     // Create task definition
     const taskDefinition = buildResult.image.imageUri.apply((imageUri) => {
         return new aws.ecs.TaskDefinition(serviceName, {
@@ -117,18 +122,16 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
             ]),
             tags: {
                 Application: serviceName,
-                deploymentType: "backend",
+                deploymentType: "frontend",
             },
         }, { dependsOn: [buildResult.image] });
     });
-
-
 
     // Create target group for the service
     const targetGroup = new aws.lb.TargetGroup(serviceName, {
         protocol: "HTTP",
         port: 80,
-        vpcId: pulumi.output(subnetIds).apply(async (sIds) => {
+        vpcId: pulumi.output(subnetIds).apply(async (sIds: any) => {
             const subnet = await aws.ec2.getSubnet({ id: sIds[0] });
             return subnet.vpcId;
         }),
@@ -137,7 +140,7 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
             healthyThreshold: 2,
             interval: 30,
             matcher: "200-299",
-            path: "/fleet-mgmt-api/p/health",
+            path: "/api/health", // Next.js health check endpoint
             protocol: "HTTP",
             timeout: 5,
             unhealthyThreshold: 5,
@@ -148,17 +151,17 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
         },
     });
 
-    // Create HTTPS listener rule instead of creating a new listener
+    // Create HTTPS listener rule
     const httpsListenerRule = new aws.lb.ListenerRule(`${serviceName}-listener-rule`, {
         listenerArn: httpsListenerArn,
-        priority: 100, // Lower priority number than hyper-decode (which uses 200)
+        priority: 300, // Different priority from fleet-mgmt (100) and hyper-decode (200)
         actions: [{
             type: "forward",
             targetGroupArn: targetGroup.arn,
         }],
         conditions: [{
             hostHeader: {
-                values: [`app.fleetcodes.com`], // fleet-mgmt uses app subdomain
+                values: [`${appSubdomain}.fleetcodes.com`],
             },
         }],
     });
@@ -191,7 +194,7 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
             }],
             tags: {
                 Application: serviceName,
-                deploymentType: "backend",
+                deploymentType: "frontend",
             },
         }, { dependsOn: [td, httpsListenerRule] });
     });
@@ -229,7 +232,7 @@ export function createFleetMgmtService(config: FleetMgmtServiceConfig) {
         taskDefinition,
         service,
         targetGroup,
-        httpsListener: httpsListenerRule, // Return the listener rule instead
+        httpsListener: httpsListenerRule,
         scalableTarget,
         scaleOutPolicy,
         logGroup,

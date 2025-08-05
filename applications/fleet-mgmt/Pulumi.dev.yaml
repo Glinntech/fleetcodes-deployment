@@ -3,5 +3,6 @@ config:
   aws:profile: fleetcodes
   fleet-mgmt-application:sharedInfrastructureStackRef: fleetcodes/shared-infrastructure/dev
   fleet-mgmt:releaseTag: 0.0.4
+  fleet-mgmt:backendPath: ../../../fleet-management-backend
   atlas:projectid: 68506e44dec1a6488674588b
   fleet-mgmt:appSubdomain: app

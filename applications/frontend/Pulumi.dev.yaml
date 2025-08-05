@@ -1,0 +1,8 @@
+config:
+  aws:region: us-east-2
+  aws:profile: fleetcodes
+  frontend:sharedInfrastructureStackRef: fleetcodes/shared-infrastructure/dev
+  frontend:releaseTag: latest
+  frontend:frontendPath: ../../../fleet-management-frontend/fleet-mgmt
+  frontend:appSubdomain: www
+  frontend:dockerfilePath: ./Dockerfile
