@@ -1,0 +1,8 @@
+config:
+  aws:region: us-east-2
+  aws:profile: fleetcodes
+  fleetcodesApp:sharedInfrastructureStackRef: fleetcodes/shared-infrastructure/dev
+  fleetcodesApp:releaseTag: latest
+  fleetcodesApp:appPath: ../../../fleetcodes-app
+  fleetcodesApp:appSubdomain: web
+  fleetcodesApp:dockerfilePath: ./Dockerfile

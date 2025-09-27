@@ -1,0 +1,3 @@
+name: fleetcodes-app
+runtime: nodejs
+description: Fleetcodes App Pulumi Stack
